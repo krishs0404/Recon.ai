@@ -6,6 +6,7 @@ from agents.scraper_agent import ScraperAgent
 from agents.activity_aggregator import ActivityAggregator
 from agents.llm_agent import LLMAgent
 from agents.rate_limiter import rate_limiter
+from agents.public_updates_agent import PublicUpdatesAgent
 
 app = FastAPI(title="Recon API", version="1.0.0")
 
@@ -23,6 +24,13 @@ class AnalyzeRequest(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     summary: str
+    questions: list[str]
+
+class PublicUpdatesRequest(BaseModel):
+    updates_block: str
+
+class PublicUpdatesResponse(BaseModel):
+    key_updates: list[str]
     questions: list[str]
 
 @app.get("/")
@@ -73,6 +81,18 @@ async def analyze_profile(request: AnalyzeRequest):
             questions=structured.get('questions', [])
         )
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/public-updates", response_model=PublicUpdatesResponse)
+async def public_updates(request: PublicUpdatesRequest):
+    try:
+        agent = PublicUpdatesAgent()
+        result = await agent.analyze_updates(request.updates_block)
+        return PublicUpdatesResponse(
+            key_updates=result.get('key_updates', []),
+            questions=result.get('questions', [])
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
