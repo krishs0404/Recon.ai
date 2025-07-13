@@ -27,6 +27,49 @@ class LLMAgent:
         except Exception as e:
             return self._get_mock_structured_response(profile_data.get('name', 'this person'))
 
+    async def generate_summary(
+        self, 
+        profile_data: Dict[str, Any], 
+        updates: List[Dict[str, Any]]
+    ) -> str:
+        """
+        Generate a 3-5 sentence summary based on profile and recent updates
+        """
+        try:
+            prompt = self._build_summary_prompt(profile_data, updates)
+            response = await self._call_openai(prompt)
+            return response.strip()
+        except Exception as e:
+            return self._get_mock_summary(profile_data.get('name', 'this person'))
+
+    def _build_summary_prompt(self, profile_data: Dict[str, Any], updates: List[Dict[str, Any]]) -> str:
+        name = profile_data.get('name', 'this person')
+        headline = profile_data.get('headline', '')
+        about = profile_data.get('about', '')
+        
+        # Format recent updates
+        updates_text = ""
+        for i, update in enumerate(updates[:5], 1):
+            source = update.get('source', 'Unknown')
+            title = update.get('title', '')
+            snippet = update.get('snippet', '')
+            updates_text += f"{i}. {source}: {title}\n   {snippet}\n\n"
+        
+        prompt = f"""
+You are a networking research assistant. Given the following data, write a comprehensive 3-5 sentence summary of this person's recent activities and current focus areas.
+
+Profile:
+Name: {name}
+Headline: {headline}
+About: {about}
+
+Recent Public Updates:
+{updates_text}
+
+Write a warm, engaging summary that references specific details from their recent activities. Focus on what makes them interesting to network with.
+"""
+        return prompt
+
     def _build_prompt(self, profile_data: Dict[str, Any], activities: List[Dict[str, Any]]) -> str:
         name = profile_data.get('name', 'this person')
         headline = profile_data.get('headline', '')
@@ -102,4 +145,7 @@ Return your answer as JSON with keys: summary, questions.
                 "What inspired your recent focus on AI-driven diagnostics in global health?",
                 "How do you see the impact of climate tech investments evolving over the next few years?"
             ]
-        } 
+        }
+
+    def _get_mock_summary(self, name: str) -> str:
+        return f"{name} has recently been active in technology and innovation. They've shared insights on emerging technologies, participated in industry conferences, and published thought leadership content. Their work demonstrates a strong focus on innovation and strategic thinking, making them an interesting person to network with." 

@@ -7,6 +7,8 @@ from agents.activity_aggregator import ActivityAggregator
 from agents.llm_agent import LLMAgent
 from agents.rate_limiter import rate_limiter
 from agents.public_updates_agent import PublicUpdatesAgent
+from agents.question_generator import generate_questions
+from agents.public_content_fetcher import fetch_public_content
 
 app = FastAPI(title="Recon API", version="1.0.0")
 
@@ -32,6 +34,19 @@ class PublicUpdatesRequest(BaseModel):
 class PublicUpdatesResponse(BaseModel):
     key_updates: list[str]
     questions: list[str]
+
+class GenerateQuestionsRequest(BaseModel):
+    updates: list[dict]
+    temperature: float = 0.7
+
+class GenerateQuestionsResponse(BaseModel):
+    questions: list[dict]
+
+class FetchPublicContentRequest(BaseModel):
+    name_or_url: str
+
+class FetchPublicContentResponse(BaseModel):
+    updates: list[dict]
 
 @app.get("/")
 async def root():
@@ -93,6 +108,24 @@ async def public_updates(request: PublicUpdatesRequest):
             key_updates=result.get('key_updates', []),
             questions=result.get('questions', [])
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/generate-questions", response_model=GenerateQuestionsResponse)
+async def generate_qs_endpoint(request: GenerateQuestionsRequest):
+    """Generate smart questions based on public updates"""
+    try:
+        questions = await generate_questions(request.updates, request.temperature)
+        return GenerateQuestionsResponse(questions=questions)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/fetch-public-content", response_model=FetchPublicContentResponse)
+async def fetch_public_content_endpoint(request: FetchPublicContentRequest):
+    """Fetch recent public content for a person"""
+    try:
+        updates = await fetch_public_content(request.name_or_url)
+        return FetchPublicContentResponse(updates=updates)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
